@@ -112,6 +112,39 @@ overlaps <- function(a_start, a_end, b_start, b_end) {
   a_start < b_end & b_start < a_end
 }
 
+# bedtools treats a zero-length feature at p as spanning [p-1, p+1) for overlap
+# and distance purposes, while printing it unchanged. Use these coordinates for
+# any comparison; print the originals. (Verified against bedtools 2.31.1.)
+bedtools_span <- function(start, end) {
+  z <- start == end
+  list(start = ifelse(z, start - 1L, start), end = ifelse(z, end + 1L, end))
+}
+
+# Error unless rows are sorted the way bedtools requires for merge/closest:
+# no chromosome reappears after another, and starts never decrease within one.
+# `state` carries chrom/start/seen across chunks; returns the updated state.
+check_sorted <- function(df, source, state = NULL) {
+  if (is.null(state)) state <- list(chrom = NA_character_, start = -1L, seen = character())
+  n <- nrow(df)
+  if (n == 0) return(state)
+  chrom <- df$chrom; start <- df$start
+  prev_chrom <- c(state$chrom, chrom[-n])
+  prev_start <- c(state$start, start[-n])
+  same <- !is.na(prev_chrom) & chrom == prev_chrom
+  bad <- which(same & start < prev_start)
+  if (length(bad)) {
+    bed_fail(sprintf("%s: unsorted input at %s:%d (previous start %d)",
+                     source, chrom[bad[1]], start[bad[1]], prev_start[bad[1]]), 1L)
+  }
+  runs <- rle(chrom)$values
+  if (identical(runs[1], state$chrom)) runs <- runs[-1]
+  dup <- runs[duplicated(runs) | runs %in% state$seen]
+  if (length(dup)) {
+    bed_fail(sprintf("%s: unsorted input, %s reappears after other chromosomes", source, dup[1]), 1L)
+  }
+  list(chrom = chrom[n], start = start[n], seen = c(state$seen, runs))
+}
+
 write_bed <- function(df, con = stdout()) {
   if (nrow(df) == 0) return(invisible(NULL))
   out <- paste(df$chrom, as.integer(df$start), as.integer(df$end), sep = "\t")
