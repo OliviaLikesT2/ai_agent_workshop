@@ -2,16 +2,44 @@
 
 VERSION <- "0.1.0"
 
-usage <- function() {
-  cat("usage: mytools --version\n", file = stderr())
+usage <- function(con = stderr()) {
+  cat("usage: mytools <subcommand> [args...]\n",
+      "       mytools --version\n",
+      "\n",
+      "subcommands: sort, merge, intersect, subtract, closest\n",
+      file = con, sep = "")
+}
+
+script_dir <- function() {
+  arg <- grep("^--file=", commandArgs(trailingOnly = FALSE), value = TRUE)
+  dirname(normalizePath(sub("^--file=", "", arg[1])))
 }
 
 args <- commandArgs(trailingOnly = TRUE)
 
-if (length(args) == 1 && args[1] == "--version") {
+if (length(args) == 0) {
+  usage()
+  quit(status = 2)
+}
+
+if (args[1] == "--version") {
   cat("mytools ", VERSION, "\n", sep = "")
   quit(status = 0)
 }
 
-usage()
-quit(status = 2)
+if (args[1] == "--help" || args[1] == "-h") {
+  usage(stdout())
+  quit(status = 0)
+}
+
+cmd <- args[1]
+cmd_file <- file.path(script_dir(), "R", paste0("cmd_", cmd, ".R"))
+if (!grepl("^[a-z]+$", cmd) || !file.exists(cmd_file)) {
+  cat("mytools: unknown subcommand '", cmd, "'\n", file = stderr(), sep = "")
+  usage()
+  quit(status = 2)
+}
+
+source(file.path(script_dir(), "R", "bed.R"))
+source(cmd_file)
+get(paste0("cmd_", cmd))(args[-1])
