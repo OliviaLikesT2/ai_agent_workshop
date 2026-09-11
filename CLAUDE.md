@@ -28,9 +28,9 @@ a success.
 `intersect`, `subtract`, `closest`. Real `bedtools` is installed and is the oracle —
 if our output differs from it on the same input, we are wrong.
 
-## Language — fill this in at 0:30
+## Language
 
-**`mytools` is written in `<language>`.** Every subcommand and every test. Don't
+**`mytools` is written in `R`.** Every subcommand and every test. Don't
 introduce a second language without asking me.
 
 One codebase, one language: several agents work on this in parallel and they will each
